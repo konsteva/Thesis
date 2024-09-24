@@ -472,3 +472,40 @@ def results_metadata(metadata_path, results_path):
     results = pd.merge(metadata, results, on="Timeseries")
 
     return results
+
+
+def kolmogorov_smirnov(errors_matrix):
+    """
+    Performs Kolmogorov-Smirnov normality test on the predicitons for each time step
+    :param errors_matrix: A nxm ndarray with all residuals for each prediction, for n segments and m residuals per segment (segment size)
+    """
+    def _per_timestep_errors(all_errors):
+        # invert columns order
+        all_errors = all_errors[:, ::-1]
+        all_errors = np.array(all_errors)
+        m, n = errors_matrix.shape
+
+        diagonals = []
+
+        # Extract all diagonals
+        for d in range(-m + 1, n):
+            diag = np.diagonal(all_errors, offset=d)
+            diagonals.append(list(diag))
+
+        return diagonals
+
+    # Example array x
+    errors = _per_timestep_errors(errors_matrix)
+
+    # Perform the Kolmogorov-Smirnov test for normality
+    non_normal = 0
+    for error in errors:
+        mean = np.mean(error)
+        std = np.std(error)
+        ks_statistic, p_value = kstest(error, 'norm', args=(mean, std))
+
+        if p_value < 0.05:
+            non_normal += 1
+
+    print("% of normally distributed errors: ", non_normal)
+    print("% of non-normally distributed errors: ", non_normal / len(errors))
